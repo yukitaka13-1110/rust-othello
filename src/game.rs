@@ -79,6 +79,8 @@ impl OthelloGame {
             
             if moves.len() != 0 {
                 println!("{}手目 - {} の手番です", self.board.turns() + 1, p_label);
+                let (v_black, v_white) = self.board.values();
+                println!("黒評価値: {}, 白評価値: {}", v_black, v_white);
                 println!("Moves");
                 for (i, m) in moves.iter().enumerate() {
                     let n_shift = format!("{:b}", m).len()-1;

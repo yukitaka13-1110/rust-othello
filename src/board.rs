@@ -56,6 +56,8 @@ pub enum GameResult {
 pub struct Board {
     black: u64,
     white: u64,
+    v_black: i64,
+    v_white: i64,
     turns: usize,
 }
 
@@ -77,12 +79,23 @@ impl Board {
         63,58,39,53,31,48,18,34,51,29,11,13,15,26,22,43,
         57,38,47,17,28,10,25,21,37,46,9,24,45,8,7,6
     ];
+    const POSITION_VALUE_TABLE: [[i64; 8]; 8] = [
+        [120, -20, 20,  5,  5, 20, -20, 120],
+        [-20, -40, -5, -5, -5, -5, -40, -20],
+        [ 20,  -5, 15,  3,  3, 15,  -5,  20],
+        [  5,  -5,  3,  3,  3,  3,  -5,   5],
+        [  5,  -5,  3,  3,  3,  3,  -5,   5],
+        [ 20,  -5, 15,  3,  3, 15,  -5,  20],
+        [-20, -40, -5, -5, -5, -5, -40, -20],
+        [120, -20, 20,  5,  5, 20, -20, 120],
+    ];
 
     pub fn new() -> Self {
         let black = 0x0000000810000000;
         let white = 0x0000001008000000;
+        let (v_black, v_white) = (6, 6);
         let n_moves = 0;
-        Board { black, white, turns: n_moves }
+        Board { black, white, v_black, v_white, turns: n_moves }
     }
 
     pub fn turn(&self) -> Player {
@@ -97,12 +110,22 @@ impl Board {
         self.turns
     }
 
+    pub fn values(&self) -> (i64, i64) {
+        (self.v_black, self.v_white)
+    }
+
     pub fn end(&self) -> bool {
         (self.white ^ self.black).count_ones() == 64
     }
 
     pub fn pass(&self) -> Board {
-        Board { black: self.black, white: self.white, turns: self.turns+1 }
+        Board {
+            black: self.black,
+            white: self.white,
+            v_black: self.v_black,
+            v_white: self.v_white,
+            turns: self.turns+1
+        }
     }
 
     pub fn show(&self) {
@@ -168,6 +191,7 @@ impl Board {
         }
 
         let players = [self.black, self.white];
+        let values = [self.v_black, self.v_white];
         let tp = players[self.turns % 2];
         let ntp = players[(self.turns+1) % 2];
     
@@ -177,10 +201,29 @@ impl Board {
         }
         let new_tp = tp ^ position ^ target;
         let new_ntp = ntp ^ target;
+        let mut v_tp = values[self.turns % 2];
+        let mut v_ntp = values[(self.turns+1) % 2];
+        let y = position & !position.wrapping_sub(1);
+        let index = (y.wrapping_mul(Board::MOVE_POSITION_MASK)) >> 58;
+        let n_shift = Board::POSITION_TABLE[index as usize];
+        v_tp += Board::POSITION_VALUE_TABLE[(7-n_shift/8) as usize][(n_shift%8) as usize];
+        while target != 0 {
+            let y = target & !target.wrapping_sub(1);
+            let index = (y.wrapping_mul(Board::MOVE_POSITION_MASK)) >> 58;
+            let n_shift = Board::POSITION_TABLE[index as usize];
+            let i = (7 - n_shift / 8) as usize;
+            let j = (n_shift % 8) as usize;
+            v_tp += Board::POSITION_VALUE_TABLE[i][j];
+            v_ntp -= Board::POSITION_VALUE_TABLE[i][j];
+            target ^= y;
+        }
         let new_players = [new_tp, new_ntp];
+        let new_values = [v_tp, v_ntp];
         let black = new_players[self.turns % 2];
         let white = new_players[(self.turns+1) % 2];
-        Board { black, white, turns: self.turns + 1 }
+        let v_black = new_values[self.turns % 2];
+        let v_white = new_values[(self.turns+1) % 2];
+        Board { black, white, v_black, v_white, turns: self.turns + 1 }
     }
 
     pub fn judge(&self) -> GameResult {

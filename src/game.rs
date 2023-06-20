@@ -96,6 +96,7 @@ impl OthelloGame {
                 pass = false;
                 if self.board.end() {
                     self.state = OthelloGameState::MatchFinished;
+                    self.board.show();
                     return;
                 }
             } else {
@@ -103,6 +104,7 @@ impl OthelloGame {
                 self.board = self.board.pass();
                 if pass {
                     self.state = OthelloGameState::MatchFinished;
+                    self.board.show();
                     return;
                 }
                 pass = true;
